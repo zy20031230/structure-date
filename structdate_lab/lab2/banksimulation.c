@@ -48,14 +48,20 @@ int EnQueue(LQptr Q,ElemType customer){//进入队列，队列长度加1
     Q->rail->next=p;
     Q->rail=Q->rail->next;
     Q->len++;
-    printf("%d-\n",Q->len);
     return OK;
 }
 int insertQueue(LQptr Q,ElemType customer){//对于Q做了一次前插。同时，一次可能只能做一次前插。
     QueuePtr p=(QueuePtr)malloc(sizeof(LQNode));
+    p->next=NULL;
     p->customer=customer;
-    p->next=Q->head->next;
-    Q->head->next=p;
+    if(Q->head==Q->rail){
+        Q->head->next=Q->rail=p;
+    }
+    else{
+        p->next=Q->head->next;
+        Q->head->next=p;
+    }
+    Q->len++;
 }
 int DeQueue(LQptr Q,Elemptr customer){//退出队列，队列长度减一。或者其中可能存在部分的问题
     if(Q->head->next==NULL) return ERROR;
@@ -70,7 +76,6 @@ int DeQueue(LQptr Q,Elemptr customer){//退出队列，队列长度减一。或�
     }
     free(p);
     Q->len=Q->len-1;
-    printf("%d-\n",Q->len);
     return OK;
 }
 int gethead(LQptr Q,Elemptr customer){
@@ -148,36 +153,41 @@ void depart_waiting(){
     QueuePtr Q=waiting->head->next;
     ElemType people;
     Elemptr  peoptr=&people;
-    if(waiting->len==0) return;//如果waiting序列里面没有任何的数，不需要进行操作，
+    if(waiting->len==0) {printf("夫函数%d___",waiting->len);printf("\n"); return;}//如果waiting序列里面没有任何的数，不需要进行操作，
     else {
         for(i=0;i<waiting->len;i++){
             gethead(waiting,peoptr);
             if((people.money+total)>=0){
                 insertQueue(handle,people);//people插入handle
+                printf("查找成功No%d  \n",people.No);
                 DeQueue(waiting,peoptr);//离开该队列
                 flag=1;
-                break;
+                break; 
             }
             else{
                 DeQueue(waiting,peoptr);
                 EnQueue(waiting,people);
+                printf("查找失败%d__\n",waiting->len);
             }
         }
+        
     }
     
 }
 void CustomerArrived(){
     //当即表示有人进入， 需要生成与这个人有关的数据
     event rightnow;
-    cust.money=rand()%200-100;//表示钱，负数表示
+    cust.money=rand()%20000-10000;//表示钱，负数表示
     cust.duration=rand()%20;//持续时间
     cust.occurtime=en_happen.time;//事件当前时间
     cust.No=No;
     if(handle->len==0&&(total+cust.money)<0){
         EnQueue(waiting,cust);//放入二号队列，同时不能将其直接放入时间表中，这个人的during，money
+        printf("%d_等待\n",cust.No);
     }
     else{
         EnQueue(handle,cust);//进入一号队列,注意这里的时间还不能确定什么时候可以放入时间表中让他离开
+        printf("%d_handle\n",cust.No);
     }//这里直接选择把cust丢进队列里，同时，可以肯定，以下是一个合格的数据，在event等于0的时候，之前没有数据对其进行操控
     if(handle->len==1){
         rightnow.evtype=-1;//这里不能直接完成一次前插，因为时间序列的原因。
@@ -194,8 +204,6 @@ void CustomerArrived(){
     if(next.time<closetime)
     linkinsert(ev,next);
 }
-
-
 void depart_handle(){//这个函数的信息处理全是在队列里有两个或者两个以上人数时发生的操作.
     DeQueue(handle,cust_ptr);//首先去计算这个人的时间
     totaltime+=en_happen.time-cust.occurtime;//这里表示，这次的插入，就发生在这里
@@ -204,22 +212,26 @@ void depart_handle(){//这个函数的信息处理全是在队列里有两个或
     else if(en_happen.evtype==1) depart_waiting();
     event after;
     //剩下来，需要设置下一个人的离开时间,以及这个人的离开时的方式即其他
-    if(handle->len>=1){//表示这个队列里还有人的话 执行以下操作.
-    gethead(handle,cust_ptr);
-     if((cust.money+total)>=0){
-        total = total+cust.money;
-        after.time=en_happen.time+cust.duration;
-        if(flag==1){
+    if(handle->len>=1){
+        gethead(handle,cust_ptr);
+        while(handle->len>=1&&cust.money+total<0){
+            DeQueue(handle,cust_ptr);
+            EnQueue(waiting,cust);//check()操作，执行于离开操作，里面的人存了足够多的钱，那么在其里面需要设置一些控制的操作。
+            gethead(handle,cust_ptr);
+        }
+        if(handle->len>=1){
+            gethead(handle,cust_ptr);
+            if((cust.money+total)>=0){
+             total = total+cust.money;
+             after.time=en_happen.time+cust.duration;
+            if(flag==1){
             after.evtype=1;
             flag=0;
         }
-        else after.evtype=-1;
-        linkinsert(ev,after);
+            else after.evtype=-1;
+            linkinsert(ev,after);
     }
-    else if((cust.money+total)<0){
-        DeQueue(handle,cust_ptr);
-        EnQueue(waiting,cust);//check()操作，执行于离开操作，里面的人存了足够多的钱，那么在其里面需要设置一些控制的操作。
-    }
+        }
     }
 }
 int main(){
@@ -228,13 +240,14 @@ int main(){
         delink(ev,en_happen_ptr);
         if(en_happen.evtype==0) CustomerArrived();
         else depart_handle();
-        Link p;
-        p=ev->head->next;
+        Link p=ev->head->next;
         while(p){
-            printf("%d ",p->event_now.evtype);
+            printf("___%d",p->event_now.evtype);
             p=p->next;
         }
         printf("\n");
+        printf("等待人数%d,\n",waiting->len);
+        printf("解决人数%d\n",handle->len);
 
     }
 }
