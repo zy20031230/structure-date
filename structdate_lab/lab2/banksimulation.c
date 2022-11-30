@@ -123,10 +123,13 @@ int delink(Linklist L ,event *ptr){
 }
 /*------ 本次实验所需的全局变量 ------- */
 int total=10000;//总金额
+int keep;
 int closetime=600;//所有人待的总时间
 int totaltime=0;
 int No;//对客户赋值
+int flag2=-1;
 int flag=0;
+int latestin=-1;
 LQptr handle,waiting;//这里还是没有指定具体的队列
 Linklist ev;//一个时间顺序的表,最终的打印应该是按照队列的排序开始打印，每一次离开队列时，打印一次.
 event en_happen;//当前发生的事件
@@ -135,6 +138,64 @@ ElemType cust;
 Elemptr cust_ptr=&cust;
 
 /* --------------全局变量定义完成----------------- */
+void closefortheday(){//从时间的设置上来看，进入的人一定不会是超出时间限制的节点
+//现在剩下的一种可能是还在排队，但是人
+    Link close;
+    QueuePtr people,pre;
+    if(flag2==1){//说明没办法去做事件驱动了，也说明了这个人是一个可以进入的人，如果这个人可以存足够多的钱，那么可以驱动
+    people=waiting->head->next;
+    while (people)
+    {
+        totaltime+=closetime-people->customer.occurtime;
+        pre=people;
+        printf("No %d 顾客未进行服务而直接离开了\n",people->customer.No);
+        people=people->next;         /* code */
+        free(pre);
+    }
+    waiting->len=0;
+    people=handle->head->next;
+    while(people)
+    {
+        totaltime+=closetime-people->customer.occurtime;
+        pre=people;
+        printf("No %d 顾客未进行服务而直接离开了\n",people->customer.No);
+        people=people->next;         /* code */
+        free(pre);
+    }
+    handle->len=0;
+    }
+    else{
+    DeQueue(handle,cust_ptr);//首先去计算这个人的时间    
+    while(ev->head){//删去所有的节点
+         close=ev->head->next;
+         free(ev->head);
+         ev->head=close;
+    }
+    people=waiting->head->next;
+    while (people)
+    {
+        totaltime+=closetime-people->customer.occurtime;
+        pre=people;
+        printf("No %d 顾客未进行服务而直接离开了\n",people->customer.No);
+        people=people->next;         /* code */
+        free(pre);
+    }
+    waiting->len=0;
+    people=handle->head->next;
+    while(people)
+    {
+        totaltime+=closetime-people->customer.occurtime;
+        pre=people;
+        printf("No %d 顾客未进行服务而直接离开了\n",people->customer.No);
+        people=people->next;         /* code */
+        free(pre);
+    }
+    handle->len=0;
+    totaltime+=en_happen.time-cust.occurtime;//这里表示，这次的插入，就发生在这里
+    printf("最后一个人No %d , 在%d离开， 在一号handle 窗口存取 %d ,银行总金额%d\n",cust.No,en_happen.time,cust.money,total);  
+   } 
+       printf("银行今天熄业了。\n模拟结束。");
+}
 void Openfortheday(){
     handle=initLQ();
     waiting=initLQ();
@@ -200,9 +261,10 @@ void CustomerArrived(){
     No++;
     event next;
     next.evtype=0;
+    keep=en_happen.time;
     next.time=en_happen.time+rand()%20;//随机数乱选
     if(next.time<closetime)
-    linkinsert(ev,next);
+    {linkinsert(ev,next); latestin=keep;}
 }
 void depart_handle(){//这个函数的信息处理全是在队列里有两个或者两个以上人数时发生的操作.
     DeQueue(handle,cust_ptr);//首先去计算这个人的时间
@@ -238,17 +300,19 @@ int main(){
     Openfortheday();
     while(ev->len){
         delink(ev,en_happen_ptr);
-        if(en_happen.evtype==0) CustomerArrived();
+        if(en_happen.time>closetime) closefortheday();
+        if(en_happen.evtype==0){ 
+            CustomerArrived(); 
+             if(ev->len==0){ 
+                flag2=1;
+               closefortheday();
+               }
+              }
         else depart_handle();
-        Link p=ev->head->next;
-        while(p){
-            printf("___%d",p->event_now.evtype);
-            p=p->next;
-        }
         printf("\n");
         printf("等待人数%d,\n",waiting->len);
         printf("解决人数%d\n",handle->len);
-
+        printf("%d",totaltime/No);
     }
 }
 
