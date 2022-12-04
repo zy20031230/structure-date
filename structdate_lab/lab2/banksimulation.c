@@ -3,6 +3,7 @@
 #include<time.h>
 #define OK 1
 #define ERROR -1
+
 /* 一些想法的记录 
 ：1，2 号队列的时间是并行产生的，二号队伍每个人出去的时间，在一号人中，处理完时间之后，加上对应的duration       */
 typedef struct{
@@ -165,12 +166,14 @@ void closefortheday(){//从时间的设置上来看，进入的人一定不会�
     handle->len=0;
     }
     else{
+    if(handle->len)
     DeQueue(handle,cust_ptr);//首先去计算这个人的时间    
     while(ev->head){//删去所有的节点
          close=ev->head->next;
          free(ev->head);
          ev->head=close;
     }
+    ev->len=0;
     people=waiting->head->next;
     while (people)
     {
@@ -194,6 +197,7 @@ void closefortheday(){//从时间的设置上来看，进入的人一定不会�
     totaltime+=en_happen.time-cust.occurtime;//这里表示，这次的插入，就发生在这里
     printf("最后一个人No %d , 在%d离开， 在一号handle 窗口存取 %d ,银行总金额%d\n",cust.No,en_happen.time,cust.money,total);  
    } 
+        printf("总时间平均%d\n",totaltime/No);
        printf("银行今天熄业了。\n模拟结束。");
 }
 void Openfortheday(){
@@ -214,7 +218,7 @@ void depart_waiting(){
     QueuePtr Q=waiting->head->next;
     ElemType people;
     Elemptr  peoptr=&people;
-    if(waiting->len==0) {printf("夫函数%d___",waiting->len);printf("\n"); return;}//如果waiting序列里面没有任何的数，不需要进行操作，
+    if(waiting->len==0) {return;}//如果waiting序列里面没有任何的数，不需要进行操作，
     else {
         for(i=0;i<waiting->len;i++){
             gethead(waiting,peoptr);
@@ -238,8 +242,8 @@ void depart_waiting(){
 void CustomerArrived(){
     //当即表示有人进入， 需要生成与这个人有关的数据
     event rightnow;
-    cust.money=rand()%20000-10000;//表示钱，负数表示
-    cust.duration=rand()%20;//持续时间
+    cust.money=rand()%12000-6000;//表示钱，负数表示
+    cust.duration=rand()%80;//持续时间
     cust.occurtime=en_happen.time;//事件当前时间
     cust.No=No;
     if(handle->len==0&&(total+cust.money)<0){
@@ -300,7 +304,7 @@ int main(){
     Openfortheday();
     while(ev->len){
         delink(ev,en_happen_ptr);
-        if(en_happen.time>closetime) closefortheday();
+        if(en_happen.time>closetime) {closefortheday();break;}
         if(en_happen.evtype==0){ 
             CustomerArrived(); 
              if(ev->len==0){ 
@@ -312,8 +316,8 @@ int main(){
         printf("\n");
         printf("等待人数%d,\n",waiting->len);
         printf("解决人数%d\n",handle->len);
-        printf("%d",totaltime/No);
     }
+
 }
 
 
